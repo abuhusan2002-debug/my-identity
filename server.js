@@ -254,7 +254,7 @@ app.get('/driving-license', async (req, res) => {
 });
 
 // ✅ 7. جلب البطاقات (Get Cards)
-app.get('/citizen/cards', async (req, res) => {
+/*app.get('/citizen/cards', async (req, res) => {
     const token = req.headers['authorization']?.replace("Bearer ", "");
     if (!token) return res.status(400).json({ message: "مطلوب التوكن" });
 
@@ -270,7 +270,44 @@ app.get('/citizen/cards', async (req, res) => {
     } catch (error) {
         res.status(401).json({ message: "رمز الجلسة غير صالح" });
     }
+});*/
+// 📌 جلب بطاقات المواطن فقط
+app.get('/citizen/cards', async (req, res) => {
+    const token = req.headers['authorization']?.replace("Bearer ", "");
+    if (!token) {
+        return res.status(400).json({ message: "مطلوب التوكن" });
+    }
+
+    try {
+        const decoded = jwt.verify(token, JWT_SECRET);
+
+        // 🔍 جلب البطاقات فقط من citizen_documents
+        const [rows] = await pool.execute(
+            `SELECT document_id, document_name, document_number, document_image_path,
+                    issue_date, expiry_date, source_table
+             FROM citizen_documents
+             WHERE national_id = ? AND document_type = 'card'`,
+            [decoded.national_id]
+        );
+
+        const baseUrl = `${req.protocol}://${req.get('host')}`;
+
+        // 🔗 تحويل المسار إلى رابط URL كامل
+        const cards = rows.map(card => ({
+            ...card,
+            document_image_url: card.document_image_path 
+                ? `${baseUrl}${card.document_image_path}` 
+                : null
+        }));
+
+        return res.json({ message: "تم جلب البطاقات", cards });
+
+    } catch (error) {
+        console.error(error);
+        return res.status(401).json({ message: "رمز الجلسة غير صالح" });
+    }
 });
+
 
 // ✅ 8. جلب المستندات (Get Documents)
 app.get('/citizen/documents', async (req, res) => {
@@ -296,3 +333,4 @@ app.get('/citizen/documents', async (req, res) => {
 app.listen(5000, () => {
   console.log('Server running on http://localhost:5000/health');
 });
+
