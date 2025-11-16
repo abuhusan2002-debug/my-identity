@@ -29,38 +29,69 @@ app.get('/health', async (req, res) => {
   }
 });
 
-// ✅ 1. تسجيل جديد (Register)
+// ✅ 1. تسجيل حساب جديد (Register)
 app.post('/auth/register', async (req, res) => {
-  const { national_id, password } = req.body;
+  const { national_id, phone, password, confirm_password } = req.body;
 
-  if (!national_id || !password) {
-    return res.status(400).json({ message: "مطلوب إدخال الرقم الوطني وكلمة المرور" });
+  //  التحقق من الحقول
+  if (!national_id || !phone || !password || !confirm_password) {
+    return res.status(400).json({ message: "ادخل جميع الحقول مطلوبة" });
   }
 
   try {
-    // التحقق إن كان المواطن موجود
-    const [rows] = await pool.execute("SELECT * FROM person_card WHERE national_id = ?", [national_id]);
-    if (rows.length === 0) {
+    // التحقق من وجود المواطن في السجل المدني
+    const [civil] = await pool.execute(
+      "SELECT * FROM person_card WHERE national_id = ?",
+      [national_id]
+    );
+
+    if (civil.length === 0) {
       return res.status(404).json({ message: "المواطن غير موجود في السجل المدني" });
     }
 
-    // التحقق إن كان المستخدم مسجل سابقًا
-    const [users] = await pool.execute("SELECT * FROM users WHERE national_id = ?", [national_id]);
+    // التحقق من أنّ رقم الهاتف ملك لنفس المواطن
+    const [telecom] = await pool.execute(
+      "SELECT * FROM telecom_company WHERE phone_number = ? AND national_id = ?",
+      [phone, national_id]
+    );
+
+    if (telecom.length === 0) {
+      return res.status(400).json({ message: "هذا الرقم ليس مسجلاً باسمك" });
+    }
+
+    // التحقق إن كان لديه حساب مسبقًا
+    const [users] = await pool.execute(
+      "SELECT * FROM users WHERE national_id = ?",
+      [national_id]
+    );
+
     if (users.length > 0) {
       return res.status(400).json({ message: "المستخدم مسجل مسبقًا" });
+    }
+
+    // التحقق من تطابق كلمة المرور
+    if (password !== confirm_password) {
+      return res.status(400).json({ message: "كلمة المرور غير متطابقة" });
     }
 
     // تشفير كلمة المرور
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    await pool.execute("INSERT INTO users (national_id, password_hash) VALUES (?, ?)", [national_id, hashedPassword]);
+    // إنشاء المستخدم
+    await pool.execute(
+      "INSERT INTO users (national_id, password_hash) VALUES (?, ?)",
+      [national_id, hashedPassword]
+    );
 
-    res.json({ message: "تم التسجيل بنجاح" });
+    // نتيجة النجاح
+    return res.json({ message: "تم إنشاء الحساب بنجاح، قم الان بتسجيل الدخول" });
+
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: "خطأ في الخادم" });
+    return res.status(500).json({ message: "خطأ في الخادم" });
   }
 });
+
 
 // ✅ 2. تسجيل الدخول (Login)
 app.post('/auth/login', async (req, res) => {
@@ -196,11 +227,16 @@ app.get('/person-card', async (req, res) => {
 
 // ✅ 6. جلب بيانات رخصة القيادة (Get Driving license Info)
 app.get('/driving-license', async (req, res) => {
-  const token = req.headers['authorization'];
+  const authHeader = req.headers['authorization'];
 
-  if (!token) {
+  if (!authHeader) {
     return res.status(400).json({ message: "مطلوب رمز الجلسة" });
   }
+
+  // إزالة كلمة Bearer إن وجدت
+  const token = authHeader.startsWith("Bearer ")
+    ? authHeader.split(" ")[1]
+    : authHeader;
 
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
@@ -217,37 +253,7 @@ app.get('/driving-license', async (req, res) => {
   }
 });
 
-/*app.get('/users/:national_id/documents', async (req, res) => {
-  const { national_id } = req.params;
-
-  try {
-    const [docs] = await pool.execute(
-      "SELECT * FROM citizen_documents WHERE national_id = ?",
-      [national_id]
-    );
-
-    if (docs.length === 0) {
-      return res.status(404).json({ message: "لا توجد بطاقات مسجّلة لهذا المواطن" });
-    }
-
-    // تعديل المسار الكامل للصورة ليظهر بشكل صحيح في FlutterFlow
-    const baseUrl = `${req.protocol}://${req.get('host')}`;
-    const documents = docs.map(doc => ({
-      ...doc,
-      document_image_url: `${baseUrl}${doc.document_image_path}`
-    }));
-
-    res.json({
-      message: "تم جلب الوثائق بنجاح",
-      documents
-    });
-
-  } catch (err) {
-    console.error("Error fetching documents:", err);
-    res.status(500).json({ message: "حدث خطأ في الخادم" });
-  }
-});*/
-
+// ✅ 7. جلب البطاقات (Get Cards)
 app.get('/citizen/cards', async (req, res) => {
     const token = req.headers['authorization']?.replace("Bearer ", "");
     if (!token) return res.status(400).json({ message: "مطلوب التوكن" });
@@ -266,6 +272,7 @@ app.get('/citizen/cards', async (req, res) => {
     }
 });
 
+// ✅ 8. جلب المستندات (Get Documents)
 app.get('/citizen/documents', async (req, res) => {
     const token = req.headers['authorization']?.replace("Bearer ", "");
     if (!token) return res.status(400).json({ message: "مطلوب التوكن" });
@@ -289,5 +296,3 @@ app.get('/citizen/documents', async (req, res) => {
 app.listen(5000, () => {
   console.log('Server running on http://localhost:5000/health');
 });
-
-
