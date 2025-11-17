@@ -32,6 +32,11 @@ app.get('/health', async (req, res) => {
 // ✅ 1. تسجيل حساب جديد (Register)
 app.post('/auth/register', async (req, res) => {
   const { national_id, phone, password, confirm_password } = req.body;
+  
+  console.log(national_id);
+  console.log(phone);
+  console.log(password);
+  console.log(confirm_password);
 
   //  التحقق من الحقول
   if (!national_id || !phone || !password || !confirm_password) {
@@ -122,9 +127,11 @@ app.post('/auth/login', async (req, res) => {
     const token = jwt.sign({ national_id }, JWT_SECRET, { expiresIn: '1h' });
     //console.log(token)
 
-    console.log("Secret used to sign:", process.env.JWT_SECRET);
+    //console.log("Secret used to sign:", process.env.JWT_SECRET);
 
     res.json({ message: "تم تسجيل الدخول ناجح - تم إرسال رمز التحقق", token, otp, JWT_SECRET }); // otp مؤقتًا للعرض
+    console.log("Login Done");
+    
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "خطأ في الخادم" });
@@ -162,6 +169,8 @@ app.post('/auth/verify-otp', async (req, res) => {
       message: "تم التحقق بنجاح ✅",
       national_id: user.national_id
     });
+    console.log("Verify Done");
+    
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "خطأ في الخادم" });
@@ -184,6 +193,8 @@ app.post('/auth/resend-otp', async (req, res) => {
     await pool.execute("UPDATE users SET otp_code = ?, otp_created_at = NOW() WHERE national_id = ?", [otp, decoded.national_id]);
 
     res.json({ message: "تم إرسال رمز جديد", otp });
+    console.log("resend Done");
+    
   } catch (err) {
     console.error(err);
     res.status(401).json({ message: "رمز الجلسة غير صالح" });
@@ -337,6 +348,7 @@ app.get('/citizen/cards', async (req, res) => {
         });
 
         return res.json({ message: "تم جلب البطاقات", cards });
+        console.log("Get Cards Done");
 
     } catch (error) {
         console.error(error);
@@ -369,6 +381,7 @@ app.get('/citizen/documents', async (req, res) => {
 app.listen(5000, () => {
   console.log('Server running on http://localhost:5000/health');
 });
+
 
 
 
