@@ -272,7 +272,7 @@ app.get('/driving-license', async (req, res) => {
     }
 });*/
 // 📌 جلب بطاقات المواطن فقط
-app.get('/citizen/cards', async (req, res) => {
+/*app.get('/citizen/cards', async (req, res) => {
     const token = req.headers['authorization']?.replace("Bearer ", "");
     if (!token) {
         return res.status(400).json({ message: "مطلوب التوكن" });
@@ -296,6 +296,45 @@ app.get('/citizen/cards', async (req, res) => {
                 ? `${baseUrl}${card.document_image_path}` 
                 : null
         }));
+
+        return res.json({ message: "تم جلب البطاقات", cards });
+
+    } catch (error) {
+        console.error(error);
+        return res.status(401).json({ message: "رمز الجلسة غير صالح" });
+    }
+});*/
+
+//app.use('/uploads', express.static('uploads')); // مهم جداً لخدمة الصور
+
+app.get('/citizen/cards', async (req, res) => {
+    const token = req.headers['authorization']?.replace("Bearer ", "");
+    if (!token) {
+        return res.status(400).json({ message: "مطلوب التوكن" });
+    }
+
+    try {
+        const decoded = jwt.verify(token, JWT_SECRET);
+
+        const [rows] = await pool.execute(
+            "SELECT * FROM citizen_documents WHERE national_id = ? AND document_type = 'card'",
+            [decoded.national_id]
+        );
+
+        const baseUrl = `${req.protocol}://${req.get('host')}`;
+
+        const cards = rows.map(card => {
+            let path = card.document_image_path;
+
+            if (path && !path.startsWith('/')) {
+                path = '/' + path;
+            }
+
+            return {
+                ...card,
+                document_image_url: path ? `${baseUrl}${path}` : null
+            };
+        });
 
         return res.json({ message: "تم جلب البطاقات", cards });
 
@@ -330,5 +369,6 @@ app.get('/citizen/documents', async (req, res) => {
 app.listen(5000, () => {
   console.log('Server running on http://localhost:5000/health');
 });
+
 
 
