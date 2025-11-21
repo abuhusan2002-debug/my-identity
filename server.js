@@ -227,7 +227,7 @@ app.get('/person-card', async (req, res) => {
       return res.status(404).json({ message: "لم يتم العثور على بيانات البطاقة" });
     }
     //-----------------------------------------------------------------
-        const baseUrl = `${req.protocol}://${req.get('host')}`;
+        /*const baseUrl = `${req.protocol}://${req.get('host')}`;
 
         const cards = rows.map(card => {
             let path = person_card.profile_image_path;
@@ -240,7 +240,7 @@ app.get('/person-card', async (req, res) => {
                 ...card,
                 profile_image_url: path ? `${baseUrl}${path}` : null
             };
-        });
+        });*/
     //------------------------------------------------------------------
     
     res.json({ card: rows[0] });
@@ -344,6 +344,7 @@ app.get('/citizen/documents', async (req, res) => {
 app.listen(5000, () => {
   console.log('Server running on http://localhost:5000/health');
 });
+
 
 
 
