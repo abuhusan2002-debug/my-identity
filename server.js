@@ -224,18 +224,29 @@ app.get('/person-card', async (req, res) => {
     const card = rows[0];
 
     const baseUrl = `${req.protocol}://${req.get('host')}`;
-    const buildUrl = (path) => {
+
+    //1
+    /*const buildUrl = (path) => {
       if (!path) return null;
       if (/^https?:\/\//.test(path)) return path;
       return `${baseUrl}/${path.replace(/^\/+/, '')}`;
-    };
+    };*/
+    
+    //2
+    function buildUrl(req, filePath) {
+      if (!filePath) return null;
 
+      const clean = filePath.replace(/^\.*\//, "");
+
+      return `${req.protocol}://${req.get("host")}/${clean}`;
+    }
+    
     let cardData = { ...card };
 
     // إضافة الروابط
-    cardData.profile_image_url = buildUrl(card.profile_image_path);
-    cardData.front_image_url   = buildUrl(card.front_image);
-    cardData.back_image_url    = buildUrl(card.back_image);
+    cardData.profile_image_url = buildUrl(req, card.profile_image_path);
+    cardData.front_image_url   = buildUrl(req, card.front_image);
+    cardData.back_image_url    = buildUrl(req, card.back_image);
 
     return res.json({ card: cardData });
 
@@ -346,6 +357,7 @@ app.get('/citizen/documents', async (req, res) => {
 app.listen(5000, () => {
   console.log('Server running on http://localhost:5000/health');
 });
+
 
 
 
