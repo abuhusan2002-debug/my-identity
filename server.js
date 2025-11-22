@@ -11,6 +11,9 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(bodyParser.json());
+
+app.enable("trust proxy");
+
 app.use('/uploads', express.static('uploads'));
 
 // مفتاح JWT
@@ -88,7 +91,8 @@ app.post('/auth/register', async (req, res) => {
 
     // نتيجة النجاح
     return res.json({ message: "تم إنشاء الحساب بنجاح، قم الان بتسجيل الدخول" });
-
+    console.log("Sign up Done");
+    
   } catch (err) {
     console.error(err);
     return res.status(500).json({ message: "خطأ في الخادم" });
@@ -128,7 +132,7 @@ app.post('/auth/login', async (req, res) => {
     //console.log("Secret used to sign:", process.env.JWT_SECRET);
 
     res.json({ message: "تم تسجيل الدخول ناجح - تم إرسال رمز التحقق", token, otp, JWT_SECRET }); // otp مؤقتًا للعرض
-    console.log("Login Done");
+    console.log("Sign in Done");
     
   } catch (err) {
     console.error(err);
@@ -231,7 +235,7 @@ app.get('/person-card', async (req, res) => {
 
     const card = rows[0];
 
-    const baseUrl = `${req.protocol}://${req.get('host')}`;
+    //const baseUrl = `${req.protocol}://${req.get('host')}`;
 
     //1
     /*const buildUrl = (path) => {
@@ -311,19 +315,19 @@ app.get('/driving-license', async (req, res) => {
     const license = rows[0];
 
     // بناء رابط كامل عبر السيرفر
-    const baseUrl = `${req.protocol}://${req.get('host')}`;
+    /*const baseUrl = `${req.protocol}://${req.get('host')}`;
     const buildUrl = (path) => {
       if (!path) return null;
       if (/^https?:\/\//.test(path)) return path; // إذا كان رابطًا جاهزًا
       return `${baseUrl}/${path.replace(/^\/+/, '')}`; // تركيب رابط كامل
-    };
+    };*/
 
     // نسخ كل الحقول مرة واحدة
     let licenseData = { ...license };
 
     // هنا اكتب فقط أسماء أعمدة الصور في جدول driving_license
-    licenseData.front_image_url  = buildUrl(license.front_image_driver);
-    licenseData.back_image_url   = buildUrl(license.back_image_driver);
+    licenseData.front_image_url  = buildUrl(req, license.front_image_driver);
+    licenseData.back_image_url   = buildUrl(req, license.back_image_driver);
 
     return res.json({message: "تم جلب بيانات رخصتك", license: licenseData });
 
@@ -356,6 +360,7 @@ app.get('/citizen/documents', async (req, res) => {
 app.listen(5000, () => {
   console.log('Server running on http://localhost:5000/health');
 });
+
 
 
 
