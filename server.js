@@ -288,6 +288,41 @@ app.get('/driving-license', async (req, res) => {
   }
 });
 
+// 7. جلب بيانات جواز السفر (Get Passport Info)
+app.get('/passport', async (req, res) => {
+  const authHeader = req.headers['authorization'];
+  if (!authHeader) {
+    return res.status(400).json({ message: "مطلوب رمز الجلسة" });
+  }
+
+  // إزالة كلمة Bearer إن وُجدت
+  const token = authHeader.startsWith("Bearer ") ? authHeader.split(" ")[1] : authHeader;
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+
+    const [rows] = await pool.execute(
+      "SELECT * FROM passport WHERE national_id = ? LIMIT 1",
+      [decoded.national_id]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ message: "لم يتم العثور على بيانات جواز السفر" });
+    }
+
+    const passport = rows[0];
+
+    let passportData = { ...passport };
+
+
+    return res.json({ passport: passportData });
+
+  } catch (err) {
+    console.error("JWT Error:", err.message);
+    return res.status(401).json({ message: "رمز الجلسة غير صالح" });
+  }
+});
+
 // 7. تصدير معلومات الهوية PDF Demo
 app.get('/export/person-card/pdf', async (req, res) => {
   const authHeader = req.headers['authorization'];
@@ -361,6 +396,7 @@ app.get('/generate-qr', async (req, res) => {
     res.json({ qrCode: qrCodeDataUrl });
 
   } catch (err) {
+     console.error("JWT Error:", err.message);
     return res.status(401).json({ message: "رمز الجلسة غير صالح" });
   }
 });
@@ -431,6 +467,7 @@ app.get('/citizen/documents', async (req, res) => {
 app.listen(5000, () => {
   console.log('Server running on http://localhost:5000/health');
 });
+
 
 
 
