@@ -5,6 +5,8 @@ const cors = require('cors');
 const pool = require('./db');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
+const PDFDocument = require('pdfkit');
+const QRCode = require('qrcode');
 require('dotenv').config();
 
 const app = express();
@@ -286,7 +288,85 @@ app.get('/driving-license', async (req, res) => {
   }
 });
 
-//  7. جلب البطاقات (Get Cards)
+// 7. تصدير معلومات الهوية PDF Demo
+app.get('/export/person-card/pdf', async (req, res) => {
+  const authHeader = req.headers['authorization'];
+  if (!authHeader) {
+    return res.status(400).json({ message: "مطلوب رمز الجلسة" });
+  }
+
+  // إزالة كلمة Bearer إن وُجدت
+  const token = authHeader.startsWith("Bearer ") ? authHeader.split(" ")[1] : authHeader;
+
+  try {
+    const decoded = jwt.verify(authHeader, JWT_SECRET);
+
+    const [rows] = await pool.execute(
+      "SELECT * FROM person_card WHERE national_id = ?",
+      [decoded.national_id]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ message: "لم يتم العثور على بيانات البطاقة" });
+    }
+
+    const card = rows[0];
+
+    // إعداد الهيدرز الصحيحة
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="person_card_${card.national_id}.pdf"`);
+
+    const doc = new PDFDocument();
+    
+    doc.pipe(res);
+
+    // أضف نصوص وحقول من الهوية
+    doc.fontSize(16).text("بطاقة الهوية", { underline: true });
+    doc.moveDown();
+    doc.fontSize(12).text(`الرقم الوطني: ${card.national_id}`);
+    doc.text(`الاسم: ${card.first_name} ${card.father_name} ${card.last_name}`);
+    doc.text(`تاريخ الولادة: ${card.birth_date}`);
+    doc.text(`مكان الولادة: ${card.birth_place}`);
+    // أضف المزيد إذا تحب...
+
+    doc.end();
+
+  } catch (err) {
+    console.error("PDF Error:", err);
+    res.status(500).json({ message: "خطأ في إنشاء PDF" });
+  }});
+
+// 8. توليد رمز الاستجابة السريع QR للهوية
+app.get('/generate-qr', async (req, res) => {
+
+  const authHeader = req.headers['authorization'];
+  if (!authHeader) {
+    return res.status(400).json({ message: "مطلوب رمز الجلسة" });
+  }
+
+  // إزالة كلمة Bearer إن وُجدت
+  const token = authHeader.startsWith("Bearer ") ? authHeader.split(" ")[1] : authHeader;
+
+  try {
+    const decoded = jwt.verify(authHeader, JWT_SECRET);
+    const nationalId = decoded.national_id;
+
+    // المحتوى الذي تريد ترميزه في QR
+    const qrData = JSON.stringify({ national_id: nationalId });
+
+    // توليد QR كـ data URL (base64 PNG)
+    const qrCodeDataUrl = await QRCode.toDataURL(qrData, { errorCorrectionLevel: 'H' });
+
+    // إرسال data URL إلى العميل
+    res.json({ qrCode: qrCodeDataUrl });
+
+  } catch (err) {
+    return res.status(401).json({ message: "رمز الجلسة غير صالح" });
+  }
+});
+
+
+//  9. جلب البطاقات (Get Cards)
 app.get('/driving-license', async (req, res) => {
   const authHeader = req.headers['authorization'];
 
@@ -313,14 +393,6 @@ app.get('/driving-license', async (req, res) => {
 
     const license = rows[0];
 
-    // بناء رابط كامل عبر السيرفر
-    /*const baseUrl = `${req.protocol}://${req.get('host')}`;
-    const buildUrl = (path) => {
-      if (!path) return null;
-      if (/^https?:\/\//.test(path)) return path; // إذا كان رابطًا جاهزًا
-      return `${baseUrl}/${path.replace(/^\/+/, '')}`; // تركيب رابط كامل
-    };*/
-
     // نسخ كل الحقول مرة واحدة
     let licenseData = { ...license };
 
@@ -336,7 +408,7 @@ app.get('/driving-license', async (req, res) => {
   }
 });
 
-//  8. جلب المستندات (Get Documents)
+//  10. جلب المستندات (Get Documents)
 app.get('/citizen/documents', async (req, res) => {
     const token = req.headers['authorization']?.replace("Bearer ", "");
     if (!token) return res.status(400).json({ message: "مطلوب التوكن" });
@@ -359,6 +431,7 @@ app.get('/citizen/documents', async (req, res) => {
 app.listen(5000, () => {
   console.log('Server running on http://localhost:5000/health');
 });
+
 
 
 
