@@ -199,6 +199,14 @@ app.post('/auth/resend-otp', async (req, res) => {
   }
 });
 
+//------------------------------------
+function buildUrl(req, filePath) {
+  if (!filePath) return null;
+  const clean = filePath.replace(/^\.*\//, "");
+  return `${req.protocol}://${req.get("host")}/${clean}`;
+}
+//------------------------------------
+
 //  5. جلب بيانات البطاقة الشخصية (Get Person Card Info)
 app.get('/person-card', async (req, res) => {
   const authHeader = req.headers['authorization'];
@@ -231,15 +239,6 @@ app.get('/person-card', async (req, res) => {
       if (/^https?:\/\//.test(path)) return path;
       return `${baseUrl}/${path.replace(/^\/+/, '')}`;
     };*/
-    
-    //2
-    function buildUrl(req, filePath) {
-      if (!filePath) return null;
-
-      const clean = filePath.replace(/^\.*\//, "");
-
-      return `${req.protocol}://${req.get("host")}/${clean}`;
-    }
     
     let cardData = { ...card };
 
@@ -357,6 +356,7 @@ app.get('/citizen/documents', async (req, res) => {
 app.listen(5000, () => {
   console.log('Server running on http://localhost:5000/health');
 });
+
 
 
 
