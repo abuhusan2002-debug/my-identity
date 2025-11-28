@@ -290,7 +290,7 @@ app.get('/driving-license', async (req, res) => {
     );
 
     if (rows.length === 0) {
-      return res.status(404).json({ message: "لم يتم العثور على بيانات الرخصة" });
+      return res.status(404).json({ message: "انت لا تملك رخصة قيادة في الوقت الحالي" });
     }
 
     const license = rows[0];
@@ -335,7 +335,7 @@ app.get('/passport', async (req, res) => {
     );
 
     if (rows.length === 0) {
-      return res.status(404).json({ message: "لم يتم العثور على بيانات جواز السفر" });
+      return res.status(404).json({ message: "انت لا تملك جواز سفر في الوقت الحالي" });
     }
 
     const passport = rows[0];
@@ -343,7 +343,7 @@ app.get('/passport', async (req, res) => {
     // نسخ كل الحقول مرة واحدة
     let passportData = { ...passport };
 
-    return res.json({ passport: passportData });
+    return res.json({message: "تم جلب بيانات جواز سفرك", passport: passportData });
 
     console.log("Passport information was obtained")
 
@@ -508,6 +508,7 @@ app.get('/citizen/documents', async (req, res) => {
 app.listen(5000, () => {
   console.log('Server running on http://localhost:5000/health');
 });
+
 
 
 
