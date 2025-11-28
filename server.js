@@ -191,11 +191,14 @@ app.post('/auth/verify-otp', async (req, res) => {
 //  إعادة إرسال رمز التحقق  (Resend OTP) 
 app.post('/auth/resend-otp', async (req, res) => {
 
-  const { token } = req.body;
+  const authHeader = req.headers['authorization'];
 
-  if (!token) {
+  if (!authHeader) {
     return res.status(400).json({ message: "مطلوب رمز الجلسة" });
   }
+
+  // إزالة كلمة Bearer إن وُجدت
+  const token = authHeader.startsWith("Bearer ") ? authHeader.split(" ")[1] : authHeader;
 
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
@@ -255,11 +258,6 @@ app.get('/person-card', async (req, res) => {
     cardData.front_image_url   = buildUrl(req, card.front_image);
     cardData.back_image_url    = buildUrl(req, card.back_image);
 
-    // اختياري: حذف المسارات الأصلية
-    // delete cardData.profile_image_path;
-    // delete cardData.front_image;
-    // delete cardData.back_image;
-
     return res.json({message: "تم جلب بيانات هويتك الشخصية", card: cardData });
 
     console.log("Person Card information was obtained");
@@ -304,10 +302,6 @@ app.get('/driving-license', async (req, res) => {
     // اكتب فقط اسماء اعمدة الصور في جدول
     licenseData.front_image_url  = buildUrl(req, license.front_image_driver);
     licenseData.back_image_url   = buildUrl(req, license.back_image_driver);
-
-    // حذف المسارات الأصلية (اختياري)
-    // delete licenseData.front_image;
-    // delete licenseData.back_image;
 
     return res.json({message: "تم جلب بيانات رخصتك", license: licenseData });
 
@@ -514,6 +508,7 @@ app.get('/citizen/documents', async (req, res) => {
 app.listen(5000, () => {
   console.log('Server running on http://localhost:5000/health');
 });
+
 
 
 
